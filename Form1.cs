@@ -13,19 +13,19 @@ namespace Snakegame
     public partial class GameForm : System.Windows.Forms.Form
     {
         int gamePoints;
-        int cols; int rows;
+        int boardWidth; int boardHeight;
         int sizex; int sizey;
 
-        Boolean GameOver = false;
+        Boolean gameOver = false;
 
         int startPosX, startPosY;
 
         Random random;
         Timer timer;
 
-        int Speed;
+        int gameSpeed;
 
-        List<Square> Snake = new List<Square>();
+        List<Square> snake = new List<Square>();
         Square food = new Square();
 
         enum Direction {up,down,left,right}
@@ -37,29 +37,29 @@ namespace Snakegame
         {
             InitializeComponent();
 
-            cols = 69;
-            rows = 36;
+            labelGame.Visible = false;
+
+            boardWidth = 40;
+            boardHeight = 30;
 
             gamePoints = 0;
 
-            Speed = 10;
+            gameSpeed = 10;
 
-            startPosX = 34;
-            startPosY = 18;
+            startPosX = 22;
+            startPosY = 15;
 
             direction = Direction.up;
 
             random = new Random();
 
-
-            //Timer (for game speed)
             timer = new Timer();
-            timer.Interval = 1000/Speed;
-            timer.Tick += new EventHandler(tick);
+            timer.Interval = 1000/gameSpeed;
+            timer.Tick += new EventHandler(Movement);
             timer.Start(); 
 
-            sizex = Board.Width /cols;
-            sizey = Board.Height/rows;
+            sizex = Board.Width /boardWidth;
+            sizey = Board.Height/boardHeight;
 
 
             InitializeGame();
@@ -67,23 +67,39 @@ namespace Snakegame
 
         private void InitializeGame()
         {
-            Snake.Clear();
-            //Create Snake
-            Square square = new Square();
-            square.x = startPosX;
-            square.y = startPosY;
-            Snake.Add(square);
+            snake.Clear();
 
-            //Create Food
-            food = new Square();
-            food.x = random.Next(0, cols);
-            food.y = random.Next(0, rows);
+            //Create Snake
+            Square square0 = new Square();
+            square0.x = startPosX;
+            square0.y = startPosY;
+
+            Square square1 = new Square();
+            square1.x = startPosX;
+            square1.y = startPosY+1;
+
+            Square square2 = new Square();
+            square2.x = startPosX;
+            square2.y = startPosY+2;
+
+            snake.Add(square0);
+            snake.Add(square1);
+            snake.Add(square2);
+
+            CreateFood();
         }
 
-        private void tick(object sender, EventArgs e)
+        public void CreateFood()
         {
-            Console.WriteLine("HEE");
-            for (int i = 0; i < Snake.Count; i++)
+            food = new Square();
+            food.x = random.Next(0, boardWidth);
+            food.y = random.Next(0, boardHeight);
+        }
+
+        private void Movement(object sender, EventArgs e)
+        {
+            if (!gameOver) { 
+            for (int i = snake.Count-1; i >= 0; i--)
             {
 
                 if (i == 0)
@@ -91,33 +107,60 @@ namespace Snakegame
                     switch (direction)
                     {
                         case Direction.up:
-                            if (Snake[i].y == 0) { Snake[i].y = rows; } else { Snake[i].y--; }
+                            if (snake[i].y == 0) { snake[i].y = boardHeight; } else { snake[i].y--; }
                             break;
                         case Direction.down:
-                            if (Snake[i].y == rows) { Snake[i].y = 0; } else { Snake[i].y++; }
+                            if (snake[i].y == boardHeight) { snake[i].y = 0; } else { snake[i].y++; }
                             break;
                         case Direction.right:
-                            if (Snake[i].x == cols) { Snake[i].x = 0; } else { Snake[i].x++; }
+                            if (snake[i].x == boardWidth) { snake[i].x = 0; } else { snake[i].x++; }
                             break;
                         case Direction.left:
-                            if (Snake[i].x == 0) { Snake[i].x = cols; } else { Snake[i].x--; }
+                            if (snake[i].x == 0) { snake[i].x = boardWidth; } else { snake[i].x--; }
                             break;
 
                     }
 
                 } else {
-                    Snake[i].x = Snake[i - 1].x;
-                    Snake[i].y = Snake[i - 1].y;
+                    snake[i].x = snake[i - 1].x;
+                    snake[i].y = snake[i - 1].y;
                 }
 
-            } Board.Invalidate();
+            }
+            Collisions();
+            Board.Invalidate();
+            }
         }
 
         private void Collisions()
         {
             //Collisions with food
+            if (snake[0].x==food.x && snake[0].y==food.y)
+            {
+                food = new Square();
+                food.x = snake[snake.Count - 1].x;
+                food.y = snake[snake.Count - 1].y;
+                snake.Add(food);
+
+                updateScore();
+
+                if (gamePoints % 3 == 0) { gameSpeed++; timer.Interval = 1000 / gameSpeed;};
+
+                CreateFood();
+
+
+            }
 
             //Collisions with body
+            for (int i = 2; i < snake.Count; i++)
+            {
+                if (snake[0].x == snake[i].x && snake[0].y == snake[i].y)
+                {
+                    gameOver = true;
+                    labelGame.Visible = true;
+                }
+            }
+
 
         }
 
@@ -127,16 +170,17 @@ namespace Snakegame
             
             switch (key) {
                 case Keys.Up:
-                    direction = Direction.up;
+                    if (direction != Direction.down) {direction = Direction.up;}
                     break;
                 case Keys.Down:
-                    direction = Direction.down;
+                    if (direction != Direction.up)   {direction = Direction.down;}
                     break;
                 case Keys.Right:
-                    direction = Direction.right;
+                    if (direction != Direction.left) {direction = Direction.right;}
                     break;
                 case Keys.Left:
-                    direction = Direction.left;
+                    if (direction != Direction.right) {direction = Direction.left;}
+                        
                     break;
                 case Keys.Escape:
                     if (MessageBox.Show("Are you sure you want to close?", "Exit", MessageBoxButtons.YesNo) == DialogResult.Yes)
@@ -145,14 +189,18 @@ namespace Snakegame
                     }
                     break;
                 case Keys.Enter:
-                    if (GameOver)
+                    if (gameOver)
                     {
-                        gamePoints = 0;
                         updateScore();
+
+                        gameOver = false;
+
+                        labelGame.Visible = false;
 
                         InitializeGame();
 
-                        timer.Start();
+
+                        
                     }
                     break;
                 default:
@@ -164,23 +212,21 @@ namespace Snakegame
         private void Board_Paint(object sender, PaintEventArgs e)
         {
             Graphics graphics = e.Graphics;
-            for (int i = 0; i<Snake.Count;i++)
+            for (int i = 0; i<snake.Count;i++)
             {
-                Size size = new Size(sizex, sizey);
-                Point point = new Point(Snake[i].x*10, Snake[i].y*10);
-                Rectangle rectangle = new Rectangle(point,size);
+                Rectangle rectangle = new Rectangle(new Point(snake[i].x * 10, snake[i].y * 10), new Size(sizex, sizey));
                 graphics.FillRectangle(Brushes.Black, rectangle);
             }
 
-            Size s = new Size(sizex, sizey);
-            Point p = new Point(food.x*10 , food.y*10);
-
-            Rectangle r = new Rectangle(p, s);
+            Rectangle r = new Rectangle(new Point(food.x * 10, food.y * 10), new Size(sizex, sizey));
             graphics.FillRectangle(Brushes.Red,r);
         }
 
         private void updateScore()
         {
+            if (gameOver) { gamePoints = 0; }
+            else { gamePoints++; }
+
             score.Text = "Score: " + gamePoints;
         }
 
